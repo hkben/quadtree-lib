@@ -126,6 +126,13 @@
             throw new Error 'Coordinates properties are missing.'
         if element?.width < 0 or element?.height < 0
             throw new Error 'Width and height must be positive integers.'
+            
+    # Validates a point
+    validatePoint = (point) ->
+        if not (typeof point is 'object')
+            throw new Error 'Point Element must be an Object.'
+        if not point.x? or not point.y?
+            throw new Error 'Coordinates properties are missing.'
 
     # Returns splitted coordinates and dimensions.
     splitTree = (tree) ->
@@ -305,6 +312,57 @@
                 fifo.push top.children[child].tree
 
         items
+        
+    # Returns an array of elements which collides with line segment .
+    # collideWithLine({x: 0, y: 0}, {x: 100, y: 200})
+    
+    collideWithLine: (pointA, pointB) ->
+        validatePoint pointA
+        validatePoint pointB
+        
+        target = {}
+        result = []
+        
+        target.x = if pointA.x <=  pointB.x then pointA.x else pointB.x
+        target.width = Math.abs(pointA.x - pointB.x)
+        target.y = if pointA.y <=  pointB.y then pointA.y else pointB.y
+        target.height = Math.abs(pointA.y - pointB.y)
+        
+        # Get all items with two Points (Top-Left to Bottom-Right)
+        items = @colliding x: target.x, y: target.y, width: target.width, height: target.height
+        
+        for elt in items
+            collision = false
+            topLeft = x: elt.x  ,  y: elt.y
+            topRight = x: elt.x + elt.width  ,  y: elt.y
+            bottomLeft = x: elt.x  ,  y: elt.y + elt.height
+            bottomRight = x: elt.x + elt.width  ,  y: elt.y + elt.height
+            
+            # Check if line segment intersects with item' sides
+            # Top Line
+            collision = @lineIntersect pointA ,  pointB  , topLeft  ,  topRight
+            # Bottom Line
+            collision =  if not collision then @lineIntersect pointA ,  pointB  , bottomLeft  ,  bottomRight else collision
+            # Left Line
+            collision =  if not collision then  @lineIntersect pointA ,  pointB  , topLeft  ,  bottomLeft else collision
+            # Right Line
+            collision =  if not collision then @lineIntersect pointA ,  pointB  , topRight  ,  bottomRight else collision
+            
+            if collision
+                result.push elt
+        result
+        
+    # Check if two line segments intersect
+    # Line 1 : pointA , pointB
+    # Line 2 : pointC , pointD
+    # Detail : http://www-cs.ccny.cuny.edu/~wolberg/capstone/intersection/Intersection%20point%20of%20two%20lines.html
+    lineIntersect: (pointA, pointB, pointC, pointD) ->
+        uA = ((pointD.x - pointC.x) * (pointA.y - pointC.y)  -  (pointD.y - pointC.y) * (pointA.x - pointC.x)) / ((pointD.y - pointC.y) * (pointB.x - pointA.x)  -  (pointD.x - pointC.x) * (pointB.y - pointA.y))
+        uB = ((pointB.x - pointA.x) * (pointA.y - pointC.y)  -  (pointB.y - pointA.y) * (pointA.x - pointC.x)) / ((pointD.y - pointC.y) * (pointB.x - pointA.x)  -  (pointD.x - pointC.x) * (pointB.y - pointA.y))
+        
+        if uA >= 0 and uA <= 1 and uB >= 0 and uB <= 1
+            return true
+        return false
 
     # Performs an action on elements which collides with the `item` argument.
     # `item` being an object having x, y, width & height properties.
